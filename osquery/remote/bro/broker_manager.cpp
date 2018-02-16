@@ -204,7 +204,7 @@ Status BrokerManager::checkConnection(double timeout, bool ignore_error) {
   }
 
   // Retrieve current connection state and whether is has changed
-  auto ps = getPeeringStatus(timeout);
+  auto ps = getPeeringStatus(0);
 
   // Still connected since last time?
   if (!ps.second && ps.first.code() == broker::sc::peer_added) {

@@ -101,10 +101,7 @@ Status BRODistributedPlugin::setUp() {
   LOG(INFO) << "Starting the Bro Distributed Plugin";
   BrokerManager& bm = BrokerManager::get();
 
-  Status s = bm.checkConnection();
-  if (!s.ok()) {
-    return s;
-  }
+  Status s = bm.checkConnection(0);
 
   return Status(0, "OK");
 }
@@ -223,6 +220,9 @@ Status BRODistributedPlugin::getQueries(std::string& json) {
   BrokerManager& bm = BrokerManager::get();
   Status s;
 
+  // Check for connection failure and wait for repair
+  bm.checkConnection();
+
   // Collect all topics and subscribers
   std::vector<std::string> topics = bm.getTopics();
   // Retrieve info about each subscriber and the file descriptor
@@ -290,9 +290,6 @@ Status BRODistributedPlugin::getQueries(std::string& json) {
     LOG(ERROR) << s.getMessage();
     return s;
   }
-
-  // Check for connection failure and wait for repair
-  bm.checkConnection(0);
 
   return Status(0, "OK");
 }
