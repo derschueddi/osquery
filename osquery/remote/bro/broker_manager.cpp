@@ -193,13 +193,27 @@ std::vector<std::string> BrokerManager::getTopics() {
 Status BrokerManager::checkConnection(double timeout, bool ignore_error) {
   // Exclusive access
   WriteLock lock(connection_mutex_);
+  bool initial_peering = false;
   Status s;
 
   // Are we unpeered or not peered yet?
   if (!ss_) {
+    initial_peering = true;
+    s = initiateReset();
+    if (!s.ok()) {
+      LOG(WARNING) << s.getMessage();
+    }
+
+    // Initial subscriptions
+    s = initiateReset();
+    if (!s.ok()) {
+      LOG(WARNING) << s.getMessage();
+    }
+
+    // Make connection
     VLOG(1) << "Initializing Peering";
     ss_ = std::make_unique<broker::status_subscriber>(
-        ep_->make_status_subscriber(true));
+            ep_->make_status_subscriber(true));
     initiatePeering();
   }
 
@@ -210,36 +224,47 @@ Status BrokerManager::checkConnection(double timeout, bool ignore_error) {
   if (!ps.second && ps.first.code() == broker::sc::peer_added) {
     return Status(0, "OK");
   }
-
-  // If changed then we have to reset
-  if (ps.second) {
-    VLOG(1) << "Resetting because connection status changed";
+/**
+  // Reset subscriptions if connection is broken
+  if (!initial_peering) {
     s = initiateReset();
     if (!s.ok()) {
       LOG(WARNING) << s.getMessage();
     }
   }
+**/
 
-  // Check for error
-  if (timeout < 0 && ignore_error) {
-    VLOG(1) << "Waiting until connection is established";
-    auto ip = remote_endpoint_.first;
-    auto port = remote_endpoint_.second;
-    while (ps.first.code() != broker::sc::peer_added) {
-      // We have to sleep since errors cause immediate return
+  // As long as not connected
+  while (timeout != 0 && ps.first.code() != broker::sc::peer_added) {
+    // Wait for status change
+    ps = getPeeringStatus(timeout);
+
+    // Break for finite timeouts
+    if (timeout > 0) {
+      break;
+    }
+
+    // Unavailable endpoints cause errors
+    if (!ignore_error) {
+      break;
+    }
+
+    // We have to sleep since errors cause immediate return
+    if (ps.first.code() != broker::sc::peer_added) {
       sleepFor(3 * 1000);
-      // Reconnect if connection is broken
-      if (ps.first.code() == broker::sc::unspecified ||
-          ep_->peers().size() == 0) {
-        VLOG(1) << "Initiate peering to repair connection";
-        ep_->peer_nosync(ip, port, broker::timeout::seconds(-1));
-      }
-      ps = getPeeringStatus(timeout);
+    }
+
+    if (ps.first.code() == broker::sc::unspecified) {
+      VLOG(1) << "Peers:" << ep_->peers().size();
+      VLOG(1) << "Subscriptions:" << ep_->peer_subscriptions().size();
+      initiatePeering(true);
     }
   }
 
-  // Check for working connection state
+  // New connection? (initial or reconnection)
   if (ps.first.code() == broker::sc::peer_added) {
+    // Subscriptions need to be flooded
+    sleepFor(1 * 1000);
     // Send announce message
     s = announce();
     if (!s.ok()) {
@@ -256,10 +281,14 @@ Status BrokerManager::checkConnection(double timeout, bool ignore_error) {
   return Status(1, "Unknown connection status");
 }
 
-Status BrokerManager::initiatePeering() {
+Status BrokerManager::initiatePeering(bool reconnect) {
   auto ip = remote_endpoint_.first;
   auto port = remote_endpoint_.second;
-  LOG(INFO) << "Connecting to Bro " << ip << ":" << port;
+  if (reconnect) {
+    VLOG(1) << "Initiate peering to repair connection";
+  } else {
+    LOG(INFO) << "Connecting to Bro " << ip << ":" << port;
+  }
 
   ep_->peer_nosync(ip, port, broker::timeout::seconds(-1));
 
@@ -332,8 +361,14 @@ std::pair<broker::status, bool> BrokerManager::getPeeringStatus(
   }
   // Check status
   if (auto st = broker::get_if<broker::status>(s)) {
+    VLOG(1) << "Broker status:" << static_cast<int>(st->code()) << ", "
+                 << to_string(*st);
     connection_status_ = *st;
     has_changed = true;
+  }
+  // Check none
+  if (auto no = broker::get_if<broker::none>(s)) {
+    VLOG(1) << "Broker none:";
   }
 
   return {connection_status_, has_changed};

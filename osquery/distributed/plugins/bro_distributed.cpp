@@ -97,11 +97,7 @@ class BRODistributedPlugin : public DistributedPlugin {
 REGISTER(BRODistributedPlugin, "distributed", "bro");
 
 Status BRODistributedPlugin::setUp() {
-  // Setup Broker Endpoint
   LOG(INFO) << "Starting the Bro Distributed Plugin";
-  BrokerManager& bm = BrokerManager::get();
-
-  Status s = bm.checkConnection(0);
 
   return Status(0, "OK");
 }
@@ -221,7 +217,11 @@ Status BRODistributedPlugin::getQueries(std::string& json) {
   Status s;
 
   // Check for connection failure and wait for repair
-  bm.checkConnection();
+  s = bm.checkConnection();
+  if (!s.ok()) {
+    LOG(WARNING) << "Unable to repair broker connection";
+    return s;
+  }
 
   // Collect all topics and subscribers
   std::vector<std::string> topics = bm.getTopics();

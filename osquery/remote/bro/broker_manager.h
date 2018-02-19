@@ -84,7 +84,7 @@ class BrokerManager : private boost::noncopyable {
   Status unpeer();
 
   /// Initiates the peering to remote endpoint
-  Status initiatePeering();
+  Status initiatePeering(bool reconnect=false);
 
   /// Initiates the reset of the broker manager
   Status initiateReset();
