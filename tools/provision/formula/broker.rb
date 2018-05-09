@@ -8,8 +8,8 @@ class Broker < AbstractOsqueryFormula
       #:revision => "68a36ed81480ba935268bcaf7b6f2249d23436da"
 	  #:tag => "v0.6"
   head "https://github.com/bro/broker.git"
-  version "0.6"
-  revision 4
+  version "0.5"
+  revision 5
 
   needs :cxx11
 
@@ -69,7 +69,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index df3a82d..eafbb9d 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -242,7 +242,7 @@ macro(add_tool name)
+@@ -352,7 +352,7 @@ macro(add_tool name)
      target_link_libraries(${name} ${LINK_LIBS} broker)
      add_dependencies(${name} broker)
    else()
