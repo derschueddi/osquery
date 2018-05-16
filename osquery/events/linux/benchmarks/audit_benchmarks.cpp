@@ -19,7 +19,7 @@
 namespace osquery {
 
 /// This is a poor interface.
-extern bool ProcessUpdate(size_t, const AuditFields&, AuditFields&);
+extern bool ProcessUpdate_EXECVE(size_t, const AuditFields&, AuditFields&);
 
 const std::vector<std::string> kBenchmarkMessages = {
     "audit(1480751147.912:48372): arch=c000003e syscall=59 success=yes exit=0 "
@@ -71,7 +71,7 @@ BENCHMARK(AUDIT_handleReply);
 static void AUDIT_assembler(benchmark::State& state) {
   AuditAssembler asmb;
   asmb.start(
-      20, {AUDIT_SYSCALL, AUDIT_EXECVE, AUDIT_PATH, AUDIT_CWD}, &ProcessUpdate);
+      20, {AUDIT_SYSCALL, AUDIT_EXECVE, AUDIT_PATH, AUDIT_CWD}, &ProcessUpdate_EXECVE);
 
   std::vector<struct audit_reply> replies = {
       getMockReply(kBenchmarkMessages[0]),

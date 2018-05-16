@@ -17,6 +17,9 @@
 
 namespace osquery {
 
+#define AUDIT_SYSCALL_CLONE 56
+#define AUDIT_SYSCALL_FORK 57
+#define AUDIT_SYSCALL_VFORK 58
 #define AUDIT_SYSCALL_EXECVE 59
 
 // Depend on the external getUptime table method.
@@ -24,7 +27,42 @@ namespace tables {
 extern long getUptime();
 }
 
-bool ProcessUpdate(size_t type, const AuditFields& fields, AuditFields& r) {
+bool ProcessUpdate_CLONE(size_t type, const AuditFields& fields, AuditFields& r) {
+  if (type == AUDIT_SYSCALL) {
+    r["auid"] = (fields.count("auid")) ? fields.at("auid") : "0";
+    r["pid"] = (fields.count("exit")) ? fields.at("exit") : "0";
+    r["parent"] = fields.count("pid") ? fields.at("pid") : "0";
+    r["uid"] = fields.count("uid") ? fields.at("uid") : "0";
+    r["euid"] = fields.count("euid") ? fields.at("euid") : "0";
+    r["gid"] = fields.count("gid") ? fields.at("gid") : "0";
+    r["egid"] = fields.count("egid") ? fields.at("euid") : "0";
+    r["path"] = (fields.count("exe")) ? decodeAuditValue(fields.at("exe")) : "";
+
+    auto qd = SQL::selectAllFrom("file", "path", EQUALS, r.at("path"));
+    if (qd.size() == 1) {
+      r["ctime"] = qd.front().at("ctime");
+      r["atime"] = qd.front().at("atime");
+      r["mtime"] = qd.front().at("mtime");
+      r["btime"] = "0";
+    }
+
+    // This should get overwritten during the EXECVE state.
+    r["cmdline"] = (fields.count("comm")) ? fields.at("comm") : "";
+    // Do not record a cmdline size. If the final state is reached and no
+    // 'argc'
+    // has been filled in then the EXECVE state was not used.
+    r["cmdline_size"] = "";
+
+    r["overflows"] = "";
+    r["env_size"] = "0";
+    r["env_count"] = "0";
+    r["env"] = "";
+  }
+
+  return true;
+}
+
+bool ProcessUpdate_EXECVE(size_t type, const AuditFields& fields, AuditFields& r) {
   if (type == AUDIT_SYSCALL) {
     r["auid"] = (fields.count("auid")) ? fields.at("auid") : "0";
     r["pid"] = (fields.count("pid")) ? fields.at("pid") : "0";
@@ -101,16 +139,32 @@ class ProcessEventSubscriber : public EventSubscriber<AuditEventPublisher> {
   Status Callback(const ECRef& ec, const SCRef& sc);
 
  private:
-  AuditAssembler asm_;
+  AuditAssembler asm_clone_;
+  AuditAssembler asm_fork_;
+  AuditAssembler asm_vfork_;
+  AuditAssembler asm_execve_;
 };
 
 REGISTER(ProcessEventSubscriber, "event_subscriber", "process_events");
 
 Status ProcessEventSubscriber::init() {
-  asm_.start(
-      20, {AUDIT_SYSCALL, AUDIT_EXECVE, AUDIT_PATH, AUDIT_CWD}, &ProcessUpdate);
+  asm_clone_.start(
+          20, {AUDIT_SYSCALL}, &ProcessUpdate_CLONE);
 
   auto sc = createSubscriptionContext();
+
+  // Monitor for execve syscalls.
+  sc->rules.push_back({AUDIT_SYSCALL_CLONE, ""});
+
+  // Request call backs for all parts of the process execution state.
+  // Drop events if they are encountered outside of the expected state.
+  sc->types = {AUDIT_SYSCALL};
+  subscribe(&ProcessEventSubscriber::Callback, sc);
+
+  asm_execve_.start(
+      20, {AUDIT_SYSCALL, AUDIT_EXECVE, AUDIT_PATH, AUDIT_CWD}, &ProcessUpdate_EXECVE);
+
+  sc = createSubscriptionContext();
 
   // Monitor for execve syscalls.
   sc->rules.push_back({AUDIT_SYSCALL_EXECVE, ""});
@@ -135,7 +189,16 @@ Status ProcessEventSubscriber::Callback(const ECRef& ec, const SCRef& sc) {
     return Status(0, "OK");
   }
 
-  auto fields = asm_.add(ec->audit_id, ec->type, ec->fields);
+  boost::optional<AuditFields> fields;
+  if (sc->rules.at(0).syscall == AUDIT_SYSCALL_CLONE) {
+    fields = asm_clone_.add(ec->audit_id, ec->type, ec->fields);
+  } else if (sc->rules.at(0).syscall == AUDIT_SYSCALL_EXECVE) {
+    fields = asm_execve_.add(ec->audit_id, ec->type, ec->fields);
+  } else {
+    VLOG(1) << "Unknown syscall number: " << sc->rules.at(0).syscall;
+    return Status(1, "Unknown syscall number");
+  }
+
   if (fields.is_initialized()) {
     add(*fields);
   }
