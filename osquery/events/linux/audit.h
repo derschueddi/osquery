@@ -123,6 +123,9 @@ class AuditAssembler : private boost::noncopyable {
   /// Check if the audit ID has completed each required message types.
   bool complete(AuditId id);
 
+  /// Check if the audit ID is currently built by this assembler
+  bool exists(AuditId id);
+
  private:
   /// A map of audit ID to aggregate message fields.
   std::unordered_map<AuditId, AuditFields> m_;

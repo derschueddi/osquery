@@ -1,6 +1,7 @@
 table_name("process_events")
 description("Track time/action process executions.")
 schema([
+    Column("action", TEXT, "Process creation method"),
     Column("pid", BIGINT, "Process (or thread) ID"),
     Column("path", TEXT, "Path of executed file"),
     Column("mode", TEXT, "File mode permissions"),

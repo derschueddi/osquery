@@ -29,6 +29,7 @@ extern long getUptime();
 
 bool ProcessUpdate_CLONE(size_t type, const AuditFields& fields, AuditFields& r) {
   if (type == AUDIT_SYSCALL) {
+    r["action"] = "clone";
     r["auid"] = (fields.count("auid")) ? fields.at("auid") : "0";
     r["pid"] = (fields.count("exit")) ? fields.at("exit") : "0";
     r["parent"] = fields.count("pid") ? fields.at("pid") : "0";
@@ -62,8 +63,85 @@ bool ProcessUpdate_CLONE(size_t type, const AuditFields& fields, AuditFields& r)
   return true;
 }
 
+bool ProcessUpdate_FORK(size_t type, const AuditFields& fields, AuditFields& r) {
+  if (type == AUDIT_SYSCALL) {
+    r["action"] = "fork";
+    r["auid"] = (fields.count("auid")) ? fields.at("auid") : "0";
+    r["pid"] = (fields.count("exit")) ? fields.at("exit") : "0";
+    r["parent"] = fields.count("pid") ? fields.at("pid") : "0";
+    r["uid"] = fields.count("uid") ? fields.at("uid") : "0";
+    r["euid"] = fields.count("euid") ? fields.at("euid") : "0";
+    r["gid"] = fields.count("gid") ? fields.at("gid") : "0";
+    r["egid"] = fields.count("egid") ? fields.at("euid") : "0";
+    r["path"] = (fields.count("exe")) ? decodeAuditValue(fields.at("exe")) : "";
+
+    auto qd = SQL::selectAllFrom("file", "path", EQUALS, r.at("path"));
+    if (qd.size() == 1) {
+      r["ctime"] = qd.front().at("ctime");
+      r["atime"] = qd.front().at("atime");
+      r["mtime"] = qd.front().at("mtime");
+      r["btime"] = "0";
+    }
+
+    // This should get overwritten during the EXECVE state.
+    r["cmdline"] = (fields.count("comm")) ? fields.at("comm") : "";
+    // Do not record a cmdline size. If the final state is reached and no
+    // 'argc'
+    // has been filled in then the EXECVE state was not used.
+    r["cmdline_size"] = "";
+
+    r["overflows"] = "";
+    r["env_size"] = "0";
+    r["env_count"] = "0";
+    r["env"] = "";
+  } else {
+    VLOG(1) << "Unknown syscall record for fork: " << type;
+  }
+
+  return true;
+}
+
+bool ProcessUpdate_VFORK(size_t type, const AuditFields& fields, AuditFields& r) {
+  if (type == AUDIT_SYSCALL) {
+    r["action"] = "vfork";
+    r["auid"] = (fields.count("auid")) ? fields.at("auid") : "0";
+    r["pid"] = (fields.count("exit")) ? fields.at("exit") : "0";
+    r["parent"] = fields.count("pid") ? fields.at("pid") : "0";
+    r["uid"] = fields.count("uid") ? fields.at("uid") : "0";
+    r["euid"] = fields.count("euid") ? fields.at("euid") : "0";
+    r["gid"] = fields.count("gid") ? fields.at("gid") : "0";
+    r["egid"] = fields.count("egid") ? fields.at("euid") : "0";
+    r["path"] = (fields.count("exe")) ? decodeAuditValue(fields.at("exe")) : "";
+
+    auto qd = SQL::selectAllFrom("file", "path", EQUALS, r.at("path"));
+    if (qd.size() == 1) {
+      r["ctime"] = qd.front().at("ctime");
+      r["atime"] = qd.front().at("atime");
+      r["mtime"] = qd.front().at("mtime");
+      r["btime"] = "0";
+    }
+
+    // This should get overwritten during the EXECVE state.
+    r["cmdline"] = (fields.count("comm")) ? fields.at("comm") : "";
+    // Do not record a cmdline size. If the final state is reached and no
+    // 'argc'
+    // has been filled in then the EXECVE state was not used.
+    r["cmdline_size"] = "";
+
+    r["overflows"] = "";
+    r["env_size"] = "0";
+    r["env_count"] = "0";
+    r["env"] = "";
+  } else {
+    VLOG(1) << "Unknown syscall record for vfork: " << type;
+  }
+
+  return true;
+}
+
 bool ProcessUpdate_EXECVE(size_t type, const AuditFields& fields, AuditFields& r) {
   if (type == AUDIT_SYSCALL) {
+    r["action"] = "execve";
     r["auid"] = (fields.count("auid")) ? fields.at("auid") : "0";
     r["pid"] = (fields.count("pid")) ? fields.at("pid") : "0";
     r["parent"] = fields.count("ppid") ? fields.at("ppid") : "0";
@@ -151,23 +229,22 @@ Status ProcessEventSubscriber::init() {
   asm_clone_.start(
           20, {AUDIT_SYSCALL}, &ProcessUpdate_CLONE);
 
-  auto sc = createSubscriptionContext();
+  asm_fork_.start(
+          20, {AUDIT_SYSCALL}, &ProcessUpdate_FORK);
 
-  // Monitor for execve syscalls.
-  sc->rules.push_back({AUDIT_SYSCALL_CLONE, ""});
-
-  // Request call backs for all parts of the process execution state.
-  // Drop events if they are encountered outside of the expected state.
-  sc->types = {AUDIT_SYSCALL};
-  subscribe(&ProcessEventSubscriber::Callback, sc);
+  asm_vfork_.start(
+          20, {AUDIT_SYSCALL}, &ProcessUpdate_VFORK);
 
   asm_execve_.start(
-      20, {AUDIT_SYSCALL, AUDIT_EXECVE, AUDIT_PATH, AUDIT_CWD}, &ProcessUpdate_EXECVE);
+          20, {AUDIT_SYSCALL, AUDIT_EXECVE, AUDIT_PATH, AUDIT_CWD}, &ProcessUpdate_EXECVE);
 
-  sc = createSubscriptionContext();
-
-  // Monitor for execve syscalls.
+  auto sc = createSubscriptionContext();
+  // Monitor for syscalls.
+  sc->rules.push_back({AUDIT_SYSCALL_CLONE, ""});
+  sc->rules.push_back({AUDIT_SYSCALL_FORK, ""});
+  sc->rules.push_back({AUDIT_SYSCALL_VFORK, ""});
   sc->rules.push_back({AUDIT_SYSCALL_EXECVE, ""});
+
 
   // Request call backs for all parts of the process execution state.
   // Drop events if they are encountered outside of the expected state.
@@ -190,13 +267,16 @@ Status ProcessEventSubscriber::Callback(const ECRef& ec, const SCRef& sc) {
   }
 
   boost::optional<AuditFields> fields;
-  if (sc->rules.at(0).syscall == AUDIT_SYSCALL_CLONE) {
+  if (ec->syscall == AUDIT_SYSCALL_CLONE || asm_clone_.exists(ec->audit_id)) {
     fields = asm_clone_.add(ec->audit_id, ec->type, ec->fields);
-  } else if (sc->rules.at(0).syscall == AUDIT_SYSCALL_EXECVE) {
+  } else if (ec->syscall == AUDIT_SYSCALL_FORK || asm_fork_.exists(ec->audit_id)) {
+    fields = asm_fork_.add(ec->audit_id, ec->type, ec->fields);
+  } else if (ec->syscall == AUDIT_SYSCALL_VFORK || asm_vfork_.exists(ec->audit_id)) {
+    fields = asm_vfork_.add(ec->audit_id, ec->type, ec->fields);
+  } else if (ec->syscall == AUDIT_SYSCALL_EXECVE || asm_execve_.exists(ec->audit_id)) {
     fields = asm_execve_.add(ec->audit_id, ec->type, ec->fields);
-  } else {
-    VLOG(1) << "Unknown syscall number: " << sc->rules.at(0).syscall;
-    return Status(1, "Unknown syscall number");
+  } else{
+    return Status(1, "Not a process related syscall");
   }
 
   if (fields.is_initialized()) {
