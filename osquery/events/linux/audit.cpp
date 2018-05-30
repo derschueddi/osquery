@@ -187,6 +187,10 @@ bool AuditAssembler::complete(AuditId id) {
   return true;
 }
 
+bool AuditAssembler::exists(AuditId id) {
+  return m_.count(id) != 0;
+}
+
 Status AuditEventPublisher::setUp() {
   if (FLAGS_disable_audit) {
     return Status(1, "Publisher disabled via configuration");
