@@ -4,10 +4,10 @@ class Caf < AbstractOsqueryFormula
   desc "Implementation of the Actor Model for C++"
   homepage "https://actor-framework.org/"
   url "https://github.com/actor-framework/actor-framework.git",
-      :revision => "882ba63d1775d8f8a5c1c514decd610134988d8c"
+      :revision => "dd215eda32214754deed7ec61b74413084338228"
   head "https://github.com/actor-framework/actor-framework.git"
   version "0.15.7"
-  revision 1
+  revision 2
 
   needs :cxx11
 
