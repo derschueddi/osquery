@@ -196,7 +196,7 @@ Status BrokerManager::checkConnection(long timeout) {
   Status s;
 
   // Initiate peering?
-  if (!ss_) {
+  if (ss_ == nullptr) {
     // Initial state when connecting
     s = initiateReset(false);
     if (!s.ok()) {

@@ -55,6 +55,9 @@ class BrokerManagerTests : public testing::Test {
     // Remaining parameters are reset when BrokerManager connects
 
     // Create new endpoint for this test
+    if (ep_ != nullptr) {
+      ep_->shutdown();
+    }
     ep_ = std::make_unique<broker::endpoint>();
   }
 
@@ -318,6 +321,8 @@ TEST_F(BrokerManagerTests, test_reconnect) {
   }
 
   // Kill server
+  sleepFor(1*1000);
+  ep_->shutdown();
   ep_ = nullptr;
   sleepFor(1*1000);
   s_peer = get().checkConnection(5);
