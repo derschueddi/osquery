@@ -53,25 +53,26 @@ class BrokerManager : private boost::noncopyable {
    */
   BrokerManager();
 
+  ~BrokerManager();
+
  public:
   /// Get a singleton instance of the BrokerManager class;
   static BrokerManager& get();
 
   // Broker Topic Prefix
   const std::string TOPIC_PREFIX = "/bro/osquery/";
-  const std::string TOPIC_ALL = TOPIC_PREFIX + "all";
-  const std::string TOPIC_ANNOUNCE = TOPIC_PREFIX + "announce";
-  const std::string TOPIC_PRE_INDIVIDUALS = TOPIC_PREFIX + "uid/";
+  const std::string TOPIC_ALL = TOPIC_PREFIX + "hosts";
+  const std::string TOPIC_ANNOUNCE = TOPIC_PREFIX + "host_announce";
+  const std::string TOPIC_PRE_INDIVIDUALS = TOPIC_PREFIX + "host/";
   const std::string TOPIC_PRE_GROUPS = TOPIC_PREFIX + "group/";
   const std::string TOPIC_PRE_CUSTOMS = TOPIC_PREFIX + "custom/";
 
-  // broker Event Messages
-  const std::string EVENT_HOST_NEW = "osquery::host_new";
-  const std::string EVENT_HOST_JOIN = "osquery::host_join";
-  const std::string EVENT_HOST_LEAVE = "osquery::host_leave";
-  const std::string EVENT_HOST_EXECUTE = "osquery::host_execute";
-  const std::string EVENT_HOST_SUBSCRIBE = "osquery::host_subscribe";
-  const std::string EVENT_HOST_UNSUBSCRIBE = "osquery::host_unsubscribe";
+  const std::string EVENT_HOST_NEW = "osquery::hosts::host_new";
+  const std::string EVENT_HOST_JOIN = "osquery::hosts::host_join";
+  const std::string EVENT_HOST_LEAVE = "osquery::hosts::host_leave";
+  const std::string EVENT_HOST_EXECUTE = "osquery::hosts::host_execute";
+  const std::string EVENT_HOST_SUBSCRIBE = "osquery::hosts::host_subscribe";
+  const std::string EVENT_HOST_UNSUBSCRIBE = "osquery::hosts::host_unsubscribe";
 
  private:
   /// Set a node ID if not already exists
@@ -111,7 +112,7 @@ class BrokerManager : private boost::noncopyable {
    */
   Status reset(bool groups_only = true);
 
-  /// Get the ID of broker endpoint that this osquery hosts uses
+  /// Get the ID of this osquery hosts uses
   std::string getNodeID();
 
   /**

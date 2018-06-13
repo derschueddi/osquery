@@ -4,11 +4,11 @@ class Broker < AbstractOsqueryFormula
   desc "Broker Communication Library"
   homepage "https://github.com/bro/broker"
   url "https://github.com/bro/broker.git", # Need git url for recursive clone
-      :revision => "7b84848bded443637fa34e76f7d8558bd1cafbee"
+      :revision => "bf8943df551efccaaa2b19e838429239260748e8"
 	  #:tag => "v1.0.1"
   head "https://github.com/bro/broker.git"
   version "1.0.1"
-  revision 1
+  revision 2
 
   needs :cxx11
 

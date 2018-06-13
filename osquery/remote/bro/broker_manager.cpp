@@ -12,6 +12,8 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <caf/node_id.hpp>
+
 #include <broker/bro.hh>
 #include <broker/broker.hh>
 #include <broker/endpoint.hh>
@@ -60,6 +62,13 @@ BrokerManager::BrokerManager() {
     LOG(ERROR) << "Failed to create broker endpoint";
     throw std::runtime_error{"Broker endpoint cannot be created"};
   }
+}
+
+BrokerManager::~BrokerManager() {
+  if (ep_ == nullptr) return;
+
+  // Shutdown the endpoint
+  ep_->shutdown();
 }
 
 BrokerManager& BrokerManager::get() {
@@ -144,7 +153,7 @@ Status BrokerManager::createEndpoint(const std::string& ep_name) {
     return Status(1, "Broker Endpoint already exists");
   }
 
-  VLOG(1) << "Creating broker endpoint with name: " << ep_name;
+  VLOG(1) << "Creating broker endpoint for name: " << ep_name;
   ep_ = std::make_unique<broker::endpoint>();
   return Status(0, "OK");
 }
@@ -345,7 +354,7 @@ Status BrokerManager::announce() {
 
   // Create Message
   broker::bro::Event announceMsg(EVENT_HOST_NEW,
-                                 {broker::data(getNodeID()), group_list});
+                                 {broker::data(caf::to_string(ep_->node_id())), broker::data(getNodeID()), group_list});
   Status s = sendEvent(TOPIC_ANNOUNCE, announceMsg);
   if (!s.ok()) {
     return s;
