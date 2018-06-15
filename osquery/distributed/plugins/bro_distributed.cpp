@@ -292,7 +292,7 @@ Status BRODistributedPlugin::getQueries(std::string& json) {
 
 Status BRODistributedPlugin::writeResults(const std::string& json) {
   QueryManager& qm = QueryManager::get();
-  
+
   // Parse json
   //VLOG(1) << "Serialized execution query results: " << json;
   std::vector<std::pair<std::string, std::pair<QueryData,int>>> query_results;
