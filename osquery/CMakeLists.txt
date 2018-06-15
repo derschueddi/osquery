@@ -146,6 +146,13 @@ else()
   ADD_OSQUERY_LINK_CORE("libz")
   ADD_OSQUERY_LINK_CORE("gflags")
   ADD_OSQUERY_LINK_CORE("thrift")
+  if(NOT SKIP_BRO)
+    ADD_OSQUERY_LINK_CORE("broker")
+    ADD_OSQUERY_LINK_CORE("caf_openssl_static")
+    ADD_OSQUERY_LINK_CORE("caf_core_static")
+    ADD_OSQUERY_LINK_CORE("caf_io_static")
+  endif()
+
 endif()
 
 if(APPLE OR LINUX)
