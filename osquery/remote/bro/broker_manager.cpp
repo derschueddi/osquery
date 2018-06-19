@@ -40,11 +40,8 @@ FLAG(string, bro_groups, "{}", "List of groups (default {})");
 
 BrokerManager::BrokerManager() {
   // Set Broker UID
-  std::string ident;
-  auto status_huuid = getHostUUID(ident);
-  if (status_huuid.ok()) {
-    setNodeID(ident);
-  }
+  auto ident = getHostIdentifier();
+  setNodeID(ident);
   const auto& uid = getNodeID();
 
   // Read groups from config
