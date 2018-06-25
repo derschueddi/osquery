@@ -158,8 +158,7 @@ TEST_F(BrokerManagerTests, test_announce) {
   EXPECT_EQ(broker::get<std::string>(msg[0]), peer_name);
   // Node ID
   EXPECT_TRUE(broker::is<std::string>(msg[1]));
-  std::string host_id;
-  getHostUUID(host_id);
+  auto host_id = getHostIdentifier();
   EXPECT_EQ(broker::get<std::string>(msg[1]), host_id);
   // Group List
   EXPECT_TRUE(broker::is<broker::vector>(msg[2]));

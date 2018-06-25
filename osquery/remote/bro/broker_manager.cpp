@@ -45,8 +45,6 @@ BrokerManager::BrokerManager() {
   const auto& uid = getNodeID();
 
   // Read groups from config
-  VLOG(1) << FLAGS_bro_ip;
-  VLOG(1) << FLAGS_bro_groups;
   Status s = parseBrokerGroups(FLAGS_bro_groups, startup_groups_);
   if (!s.ok()) {
     LOG(WARNING) << s.getMessage();
@@ -379,7 +377,9 @@ Status BrokerManager::logQueryLogItemToBro(const QueryLogItem& qli) {
   auto status_find =
       QueryManager::get().findQueryAndType(queryID, qType, query);
   if (!status_find.ok()) {
-    return status_find;
+    // Might have been unsubscribed from during query execution
+    LOG(WARNING) << "Cannot send query results to Bro: " << status_find.getMessage();
+    return Status(0, "OK");
   }
 
   // Rows to be reported
