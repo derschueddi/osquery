@@ -297,7 +297,7 @@ Status BrokerManager::initiateReset(bool reset_schedule) {
 
 std::pair<broker::status, bool> BrokerManager::getPeeringStatus(long timeout) {
   // Process latest status changes
-  broker::detail::variant<broker::none, broker::error, broker::status> s;
+  caf::variant<broker::none, broker::error, broker::status> s;
   bool has_changed = false;
 
   // Block first to wait for a status change to happen
