@@ -16,12 +16,20 @@ ADD_OSQUERY_TEST_CORE(
   "${CMAKE_CURRENT_LIST_DIR}/tests/logger_tests.cpp"
 )
 
-ADD_OSQUERY_LIBRARY_ADDITIONAL(osquery_logger_plugins
+LIST(APPEND OSQUERY_LOGGER_PLUGINS 
   "${CMAKE_CURRENT_LIST_DIR}/plugins/buffered.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/plugins/filesystem_logger.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/plugins/tls_logger.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/plugins/stdout.cpp"
 )
+
+if(NOT SKIP_BRO)
+  LIST(APPEND OSQUERY_LOGGER_PLUGINS 
+    "${CMAKE_CURRENT_LIST_DIR}/plugins/bro_logger.cpp"
+  )
+endif()
+
+ADD_OSQUERY_LIBRARY_ADDITIONAL(osquery_logger_plugins ${OSQUERY_LOGGER_PLUGINS})
 
 if(LINUX)
   target_sources(osquery_logger_plugins

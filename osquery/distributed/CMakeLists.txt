@@ -11,8 +11,16 @@ target_sources(libosquery
     "${CMAKE_CURRENT_LIST_DIR}/distributed.cpp"  
 )
 
-ADD_OSQUERY_LIBRARY(FALSE osquery_distributed_plugins
+SET(OSQUERY_DISTRIBUTED_PLUGINS
   "${CMAKE_CURRENT_LIST_DIR}/plugins/tls_distributed.cpp"
+)
+
+if(NOT SKIP_BRO)
+  LIST(APPEND OSQUERY_DISTRIBUTED_PLUGINS "${CMAKE_CURRENT_LIST_DIR}/plugins/bro_distributed.cpp")
+endif()
+
+ADD_OSQUERY_LIBRARY(FALSE osquery_distributed_plugins
+  ${OSQUERY_DISTRIBUTED_PLUGINS}
 )
 
 ADD_OSQUERY_TEST_ADDITIONAL(

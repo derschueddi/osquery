@@ -6,7 +6,7 @@
 #  in the COPYING file in the root directory of this source tree).
 #  You may select, at your option, one of the above-listed licenses.
 
-ADD_OSQUERY_LIBRARY(FALSE osquery_remote
+SET(OSQUERY_REMOTE
   "${CMAKE_CURRENT_LIST_DIR}/enroll/enroll.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/serializers/json.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/serializers/json.h"
@@ -18,6 +18,14 @@ ADD_OSQUERY_LIBRARY(FALSE osquery_remote
   "${CMAKE_CURRENT_LIST_DIR}/uri.h"
   "${CMAKE_CURRENT_LIST_DIR}/utility.h"
 )
+
+if(NOT SKIP_BRO)
+  LIST(APPEND OSQUERY_REMOTE "${CMAKE_CURRENT_LIST_DIR}/bro/broker_manager.cpp")
+  LIST(APPEND OSQUERY_REMOTE "${CMAKE_CURRENT_LIST_DIR}/bro/query_manager.cpp")
+  LIST(APPEND OSQUERY_REMOTE "${CMAKE_CURRENT_LIST_DIR}/bro/bro_utils.cpp")
+endif()
+
+ADD_OSQUERY_LIBRARY(FALSE osquery_remote ${OSQUERY_REMOTE})
 
 ADD_OSQUERY_LIBRARY(FALSE osquery_enrollment_plugins
   "${CMAKE_CURRENT_LIST_DIR}/enroll/plugins/tls_enroll.cpp"
@@ -37,3 +45,11 @@ ADD_OSQUERY_TEST_ADDITIONAL(
   "${CMAKE_CURRENT_LIST_DIR}/serializers/tests/json_serializers_tests.cpp"
   "${CMAKE_CURRENT_LIST_DIR}/transports/tests/tls_transports_tests.cpp"
 )
+
+if(NOT SKIP_BRO)
+  ADD_OSQUERY_TEST_ADDITIONAL(
+    "${CMAKE_CURRENT_LIST_DIR}/bro/tests/broker_manager_tests.cpp"
+    "${CMAKE_CURRENT_LIST_DIR}/bro/tests/query_manager_tests.cpp"
+  )
+endif()
+
