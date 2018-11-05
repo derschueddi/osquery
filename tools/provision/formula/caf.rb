@@ -4,10 +4,10 @@ class Caf < AbstractOsqueryFormula
   desc "Implementation of the Actor Model for C++"
   homepage "https://actor-framework.org/"
   url "https://github.com/actor-framework/actor-framework.git",
-      :revision => "656d0bd236f95514b855e4012251ddb270468f78"
+      :revision => "9cb3dde60e82aa68052aa2a093628a600cf6f89c"
   head "https://github.com/actor-framework/actor-framework.git"
-  version "0.15.7"
-  revision 3
+  version "0.16.1"
+  revision 0
 
   needs :cxx11
 
@@ -37,7 +37,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index 9402137..d4268c4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -336,9 +336,9 @@ if(CAF_IOS_DEPLOYMENT_TARGET)
+@@ -335,9 +335,9 @@ if(CAF_IOS_DEPLOYMENT_TARGET)
    endif()
  endif()
  # check if the user provided CXXFLAGS, set defaults otherwise
