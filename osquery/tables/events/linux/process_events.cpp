@@ -9,6 +9,7 @@
  */
 
 #include <asm/unistd_64.h>
+#include <sched.h>
 
 #include <osquery/logger.h>
 #include <osquery/registry_factory.h>
@@ -22,6 +23,12 @@ FLAG(bool,
      audit_allow_process_events,
      true,
      "Allow the audit publisher to install process event monitoring rules");
+
+/// Control the audit subsystem by excluding clone, fork, and vfork from process monitoring.
+FLAG(bool,
+     audit_allow_exec_only,
+     true,
+     "Allow the audit publisher to monitor the exec syscall only for process-related events");
 
 // Depend on the external getUptime table method.
 namespace tables {
@@ -55,6 +62,7 @@ Status AuditProcessEventSubscriber::Callback(const ECRef& ec, const SCRef& sc) {
 Status AuditProcessEventSubscriber::ProcessEvents(
     std::vector<Row>& emitted_row_list,
     const std::vector<AuditEvent>& event_list) noexcept {
+
   // clang-format off
   /*
     1300 audit(1502125323.756:6): arch=c000003e syscall=59 success=yes exit=0 a0=23eb8e0 a1=23ebbc0 a2=23c9860 a3=7ffe18d32ed0 items=2 ppid=6882 pid=7841 auid=1000 uid=1000 gid=1000 euid=1000 suid=1000 fsuid=1000 egid=1000 sgid=1000 fsgid=1000 tty=pts1 ses=2 comm="sh" exe="/usr/bin/bash" subj=unconfined_u:unconfined_r:unconfined_t:s0-s0:c0.c1023 key=(null)
@@ -75,8 +83,8 @@ Status AuditProcessEventSubscriber::ProcessEvents(
       continue;
     }
 
-    const auto& event_data = boost::get<SyscallAuditEventData>(event.data);
-    if (event_data.syscall_number != __NR_execve) {
+        const auto& event_data = boost::get<SyscallAuditEventData>(event.data);
+    if (event_data.syscall_number != __NR_execve && (FLAGS_audit_allow_exec_only || (event_data.syscall_number != __NR_fork && event_data.syscall_number != __NR_vfork && event_data.syscall_number != __NR_clone))) {
       continue;
     }
 
@@ -89,39 +97,83 @@ Status AuditProcessEventSubscriber::ProcessEvents(
 
     const AuditEventRecord* execve_event_record =
         GetEventRecord(event, AUDIT_EXECVE);
-    if (execve_event_record == nullptr) {
+    if (event_data.syscall_number == __NR_execve && execve_event_record == nullptr) {
       VLOG(1) << "Malformed AUDIT_EXECVE event";
       continue;
     }
 
     const AuditEventRecord* first_path_event_record =
         GetEventRecord(event, AUDIT_PATH);
-    if (first_path_event_record == nullptr) {
+    if (event_data.syscall_number == __NR_execve && first_path_event_record == nullptr) {
       VLOG(1) << "Malformed AUDIT_PATH event";
       continue;
     }
 
     const AuditEventRecord* cwd_event_record = GetEventRecord(event, AUDIT_CWD);
-    if (cwd_event_record == nullptr) {
+    if (event_data.syscall_number == __NR_execve && cwd_event_record == nullptr) {
       VLOG(1) << "Malformed AUDIT_CWD event";
       continue;
     }
 
     Row row = {};
 
+    std::uint64_t process_id;
+    std::uint64_t parent_process_id;
+    std::uint64_t exit_id;
+    GetIntegerFieldFromMap(
+            process_id, syscall_event_record->fields, "pid", std::uint64_t{0});
+    GetIntegerFieldFromMap(
+            parent_process_id, syscall_event_record->fields, "ppid", std::uint64_t{0});
+    GetIntegerFieldFromMap(
+            exit_id, syscall_event_record->fields, "exit", std::uint64_t{0});
+
+    switch (event_data.syscall_number) {
+      case __NR_execve:
+        row["action"] = "execve";
+        row["pid"] = std::to_string(process_id);
+        row["parent"] = std::to_string(parent_process_id);
+        break;
+      case __NR_fork:
+        row["action"] = "fork";
+        row["pid"] = std::to_string(exit_id);
+        row["parent"] = std::to_string(process_id);
+        break;
+      case __NR_vfork:
+        row["action"] = "vfork";
+        row["pid"] = std::to_string(exit_id);
+        row["parent"] = std::to_string(process_id);
+        break;
+      case __NR_clone:
+        std::uint64_t clone_flags;
+        GetIntegerFieldFromMap(
+                clone_flags, syscall_event_record->fields, "a0", std::size_t{16}, std::uint64_t{0});
+
+        if (clone_flags & CLONE_THREAD) {
+          // Just a thread with the same PID - EXIT code is the thread-ID
+          continue;
+        }
+
+        row["action"] = "clone";
+        row["pid"] = std::to_string(exit_id);
+        if (clone_flags & CLONE_PARENT) {
+          row["parent"] = std::to_string(parent_process_id);
+        } else {
+          row["parent"] = std::to_string(process_id);
+        }
+        break;
+      default:
+        LOG(WARNING) << "Process event for unknown syscall " << event_data.syscall_number;
+        continue;
+    }
+
     CopyFieldFromMap(row, syscall_event_record->fields, "auid", "0");
-    CopyFieldFromMap(row, syscall_event_record->fields, "pid", "0");
     CopyFieldFromMap(row, syscall_event_record->fields, "uid", "0");
     CopyFieldFromMap(row, syscall_event_record->fields, "euid", "0");
     CopyFieldFromMap(row, syscall_event_record->fields, "gid", "0");
     CopyFieldFromMap(row, syscall_event_record->fields, "egid", "0");
-    CopyFieldFromMap(row, cwd_event_record->fields, "cwd", "0");
-
-    std::uint64_t parent_process_id;
-    GetIntegerFieldFromMap(
-        parent_process_id, syscall_event_record->fields, "ppid");
-    row["parent"] = std::to_string(parent_process_id);
-
+    if (event_data.syscall_number == __NR_execve) {
+        CopyFieldFromMap(row, cwd_event_record->fields, "cwd", "0");
+    }
     std::string field_value;
     GetStringFieldFromMap(field_value, syscall_event_record->fields, "exe", "");
     row["path"] = DecodeAuditPathValues(field_value);
@@ -139,6 +191,12 @@ Status AuditProcessEventSubscriber::ProcessEvents(
     row["env_count"] = "0";
     row["env"] = "";
     row["uptime"] = std::to_string(tables::getUptime());
+
+    // No more records for syscalls clone, fork, and vfork
+    if (event_data.syscall_number != __NR_execve) {
+        emitted_row_list.push_back(row);
+      continue;
+    }
 
     // build the command line from the AUDIT_EXECVE record
     row["cmdline"] = "";
@@ -175,7 +233,12 @@ Status AuditProcessEventSubscriber::ProcessEvents(
 }
 
 const std::set<int>& AuditProcessEventSubscriber::GetSyscallSet() noexcept {
-  static const std::set<int> syscall_set = {__NR_execve};
+  static std::set<int> syscall_set;
+  if (FLAGS_audit_allow_exec_only) {
+    syscall_set = { __NR_execve };
+  } else {
+    syscall_set = { __NR_execve, __NR_fork, __NR_vfork, __NR_clone };
+  }
   return syscall_set;
 }
 } // namespace osquery

@@ -182,7 +182,7 @@ void AuditEventPublisher::ProcessEvents(
       // By discarding this event, we will also automatically discard any other
       // attached record
       if (syscall_status != "yes") {
-        continue;
+        ;
       }
 
       std::uint64_t process_id;
