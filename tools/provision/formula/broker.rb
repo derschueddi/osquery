@@ -4,9 +4,9 @@ class Broker < AbstractOsqueryFormula
   desc "Broker Communication Library"
   homepage "https://github.com/bro/broker"
   url "https://github.com/bro/broker.git", # Need git url for recursive clone
-      :revision => "f5af210b8c3192d0372401e86bcaacea0332638d"
+      :revision => "0e514a7d3100d80e6e1bf481db2f5379456ce09e"
   head "https://github.com/bro/broker.git"
-  version "1.1.1"
+  version "1.1.2"
   revision 0
 
   needs :cxx11
@@ -67,7 +67,7 @@ diff --git a/CMakeLists.txt b/CMakeLists.txt
 index df3a82d..eafbb9d 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -375,7 +375,7 @@ macro(add_tool name)
+@@ -409,7 +409,7 @@ macro(add_tool name)
      target_link_libraries(${name} ${LINK_LIBS} broker)
      add_dependencies(${name} broker)
    else()
