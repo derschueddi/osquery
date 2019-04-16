@@ -13,6 +13,7 @@
 #include <sstream>
 
 #include <osquery/config.h>
+#include <osquery/database.h>
 #include <osquery/flags.h>
 #include <osquery/logger.h>
 
@@ -74,6 +75,8 @@ Status QueryManager::addQueryEntry(const std::string& queryID,
   }
 
   if (qtype == "SCHEDULE") {
+    // Ensure no database artifacts
+    purgeQuery(queryID);
     scheduleQueries_[queryID] =
         ScheduleQueryEntry{queryID, query, interval, added, removed, snapshot};
   } else if (qtype == "ONETIME") {
@@ -144,7 +147,27 @@ Status QueryManager::removeQueryEntry(const std::string& query) {
     oneTimeQueries_.erase(queryID);
   }
 
+  // Purge from database
+  // TODO: scheduled queries only?
+  purgeQuery(queryID);
+
   return Status(0, "OK");
+}
+
+Status QueryManager::purgeQuery(const std::string& queryID) {
+  // Delete Query
+  auto status = deleteDatabaseValue(kQueries, "query." + queryID);
+
+  // Delete Counter
+  status = deleteDatabaseValue(kQueries, queryID + "counter");
+
+  // Delete Query Data
+  status = deleteDatabaseValue(kQueries, queryID);
+
+  // Delete Epoch
+  status = deleteDatabaseValue(kQueries, queryID + "epoch");
+
+  return status;
 }
 
 std::string QueryManager::getQueryConfigString() {

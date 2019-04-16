@@ -134,6 +134,9 @@ class QueryManager : private boost::noncopyable {
   /// Remove a query from tracking given by the query string
   Status removeQueryEntry(const std::string& query);
 
+  /// Remove all references to the query from the database
+  Status purgeQuery(const std::string& query);
+
   /// Generate configuration data for the query schedule (osqueryd) from the
   /// broker query tracking
   std::string getQueryConfigString();

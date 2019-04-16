@@ -67,12 +67,12 @@ class BrokerManager : private boost::noncopyable {
   const std::string TOPIC_PRE_GROUPS = TOPIC_PREFIX + "group/";
   const std::string TOPIC_PRE_CUSTOMS = TOPIC_PREFIX + "custom/";
 
-  const std::string EVENT_HOST_NEW = "osquery::hosts::host_new";
-  const std::string EVENT_HOST_JOIN = "osquery::hosts::host_join";
-  const std::string EVENT_HOST_LEAVE = "osquery::hosts::host_leave";
-  const std::string EVENT_HOST_EXECUTE = "osquery::hosts::host_execute";
-  const std::string EVENT_HOST_SUBSCRIBE = "osquery::hosts::host_subscribe";
-  const std::string EVENT_HOST_UNSUBSCRIBE = "osquery::hosts::host_unsubscribe";
+  const std::string EVENT_HOST_NEW = "osquery::host_new";
+  const std::string EVENT_HOST_JOIN = "osquery::host_join";
+  const std::string EVENT_HOST_LEAVE = "osquery::host_leave";
+  const std::string EVENT_HOST_EXECUTE = "osquery::host_execute";
+  const std::string EVENT_HOST_SUBSCRIBE = "osquery::host_subscribe";
+  const std::string EVENT_HOST_UNSUBSCRIBE = "osquery::host_unsubscribe";
 
  private:
   /// Set a node ID if not already exists
