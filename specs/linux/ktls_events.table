@@ -1,0 +1,23 @@
+table_name("ktls_events")
+description("Track network socket opens and closes.")
+schema([
+    Column("action", TEXT, "The socket action (bind, listen, close)"),
+    Column("pid", BIGINT, "Process (or thread) ID"),
+    Column("path", TEXT, "Path of executed file"),
+    Column("fd", TEXT, "The file description for the process socket"),
+    Column("auid", BIGINT, "Audit User ID"),
+    Column("success", INTEGER, "The socket open attempt status"),
+    Column("tls_sock_opt", TEXT, "TLS Socket option, send or receive"),
+    Column("tls_version", TEXT, ""),
+    Column("tls_cipher_type", TEXT, ""),
+    Column("tls_iv", TEXT, ""),
+    Column("tls_key", TEXT, ""),
+    Column("tls_salt", TEXT, ""),
+    Column("tls_rec_seq", TEXT, ""),
+
+    Column("time", BIGINT, "Time of execution in UNIX time"),
+    Column("uptime", BIGINT, "Time of execution in system uptime"),
+    Column("eid", TEXT, "Event ID", hidden=True),
+])
+attributes(event_subscriber=True)
+implementation("ktls_events@ktls_events::genTable")

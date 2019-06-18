@@ -27,6 +27,7 @@
 #include "osquery/tables/events/linux/process_file_events.h"
 #include "osquery/tables/events/linux/selinux_events.h"
 #include "osquery/tables/events/linux/socket_events.h"
+#include "osquery/tables/events/linux/ktls_events.h"
 
 namespace osquery {
 /// Control the audit subsystem by electing to be the single process sink.
@@ -332,6 +333,16 @@ bool AuditdNetlinkReader::configureAuditService() noexcept {
       monitored_syscall_list_.insert(syscall);
     }
   }
+
+  // Rules required by the ktls_events table
+  //if (FLAGS_audit_allow_ktls) {
+    VLOG(1) << "Enabling audit rules for the ktls_events table";
+
+    for (int syscall : KtlsEventSubscriber::GetSyscallSet()) {
+      monitored_syscall_list_.insert(syscall);
+    }
+  //}
+
 
   // Rules required by the process_file_events table
   if (FLAGS_audit_allow_fim_events) {
